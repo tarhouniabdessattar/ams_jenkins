@@ -1,36 +1,27 @@
-# Utiliser l'image officielle Maven comme étape de construction
+# Étape de construction avec Maven
 FROM maven:3.8.4-openjdk-17 AS build
-
-# Définir le répertoire de travail à /app dans le conteneur
 WORKDIR /app
 
-# Copier le fichier pom.xml et le répertoire src dans le conteneur
+# Copier pom.xml et télécharger les dépendances (caching)
 COPY pom.xml .
+RUN mvn dependency:go-offline
+
+# Copier le code source
 COPY src ./src
-# Construire l'application
-# 'mvn clean install' nettoie le projet et installe les dépendances
-# '-DskipTests' est utilisé pour ignorer les tests pendant la construction
-RUN mvn clean install -DskipTests
 
-# Utiliser l'image officielle OpenJDK comme étape d'exécution
+# Construire l'application en ignorant les tests
+RUN mvn clean package -DskipTests
+
+# Étape finale avec OpenJDK
 FROM openjdk:17-jdk-alpine
-
-
-
-
-# Définir le répertoire de travail à /app dans le conteneur
 WORKDIR /app
 
-# Copier le fichier JAR exécutable de l'étape de construction à l'étape d'exécution
-# '/app/target/ams_data-0.0.1-SNAPSHOT.jar' est le fichier JAR généré par Maven
-COPY --from=build /app/target/amsmvc2024.jar .
+# Copier le JAR depuis l'étape build
+# Remplacer le nom du JAR selon ce qui est généré par Maven
+COPY --from=build /app/target/ams_data-0.0.1-SNAPSHOT.jar ./app.jar
 
-# Exposer le port sur lequel l'application sera à l'écoute
-# '8080' est le port typique pour les applications web
+# Exposer le port de l'application
 EXPOSE 8080
 
-
-
-# Définir la commande pour exécuter l'application
-# 'java -jar' est utilisé pour lancer l'application JAR
-CMD ["java", "-jar", "amsmvc2024.jar"]
+# Commande pour lancer l'application
+CMD ["java", "-jar", "app.jar"]
